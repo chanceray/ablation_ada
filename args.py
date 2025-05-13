@@ -35,7 +35,7 @@ def parser_loader():
                       help='Label noise ratio for train set (0-1)')
 
     args = vars(parser.parse_args())
-    seed_dict = {'cora': 1899, 'citeseer': 17889, 'pubmed': 3333}
+    seed_dict = {'cora': 1899, 'citeseer': 17889, 'pubmed': 3333, 'cornell': 3333,'wisconsin': 3333,'texas': 3333}
     # seed_dict = {'cora': 23977/23388, 'citeseer': 27943/27883, 'pubmed': 3333}
     args['seed'] = seed_dict[args['dataset']]
 

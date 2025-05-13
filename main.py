@@ -150,7 +150,7 @@ def run_get_mask(args):
     if args['continuous']:
         return adj_mask_ls, wei_mask_ls
     else:
-        return best_target['mask']
+        return [best_target['mask'][0]], [best_target['mask'][1]]
 
 def run_fix_mask(args, edge_masks, wei_masks, rewind_weight=None):
     device = args['device']
@@ -231,52 +231,41 @@ if __name__ == "__main__":
     print(args)
     utils.fix_seed(args['seed'])
     
-    # 如果指定了单个分割，则只评估那个
-    if 'split_idx' in args and args['split_idx'] >= 0:
-        # 使用单个指定的分割
-        edge_masks, wei_masks = run_get_mask(args)
+    # 评估所有10个分割
+    all_results = []
+    
+    for split_idx in range(10):
+        print(f"\n\n{'='*50}")
+        print(f"使用数据分割 {split_idx}/10")
+        print(f"{'='*50}\n")
         
-        if not args['continuous']:
-            run_fix_mask(args, edge_masks, wei_masks, rewind_weight=None)
-        else:
-            print(len(edge_masks))
-            for emask, wmask in zip(edge_masks, wei_masks):
-                run_fix_mask(args, emask, wmask, rewind_weight=None)
-    else:
-        # 评估所有10个分割
-        all_results = []
+        # 更新当前分割索引
+        args['split_idx'] = split_idx
         
-        for split_idx in range(10):
-            print(f"\n\n{'='*50}")
-            print(f"使用数据分割 {split_idx}/10")
-            print(f"{'='*50}\n")
-            
-            # 更新当前分割索引
-            args['split_idx'] = split_idx
-            
-            # 运行实验
+        # 运行实验
+        if args['continuous']:
             edge_masks, wei_masks = run_get_mask(args)
-            
-            # 使用最佳模型评估
-            if not args['continuous']:
-                run_fix_mask(args, edge_masks, wei_masks, rewind_weight=None)
-            else:
-                results = []
-                for i, (emask, wmask) in enumerate(zip(edge_masks, wei_masks)):
-                    result = run_fix_mask(args, emask, wmask, rewind_weight=None)
-                    results.append(result)
-                
-                # 保存每个分割的最佳结果
-                best_result = max(results) if results else 0
-                all_results.append(best_result)
-                
-                print(f"分割 {split_idx} 最佳测试准确率: {best_result:.2f}%")
+            results = []
+            for i, (emask, wmask) in enumerate(zip(edge_masks, wei_masks)):
+                result = run_fix_mask(args, emask, wmask, rewind_weight=None)
+                results.append(result)
+            # 取最佳结果
+            best_result = max(results) if results else 0
+        else:
+            # 修改这里！正确接收两个返回值
+            edge_masks, wei_masks = run_get_mask(args)  # 接收两个返回值
+            # 注意不再是 None 而是 wei_masks
+            result = run_fix_mask(args, edge_masks[0], wei_masks[0], rewind_weight=None)  
+            best_result = result
         
-        # 打印所有分割的汇总结果
-        if all_results:
-            mean_acc = np.mean(all_results)
-            std_acc = np.std(all_results)
-            print("\n" + "="*50)
-            print(f"所有10个分割的平均测试准确率: {mean_acc:.2f}% ± {std_acc:.2f}%")
-            print(f"所有分割结果: {all_results}")
-            print("="*50)
+        # 保存每个分割的结果
+        all_results.append(best_result)
+        print(f"分割 {split_idx} 测试准确率: {best_result:.2f}%")
+    
+    # 打印所有分割的汇总结果
+    mean_acc = np.mean(all_results)
+    std_acc = np.std(all_results)
+    print("\n" + "="*50)
+    print(f"所有10个分割的平均测试准确率: {mean_acc:.2f}% ± {std_acc:.2f}%")
+    print(f"所有分割结果: {all_results}")
+    print("="*50)
